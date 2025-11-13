@@ -57,6 +57,15 @@ app.use(
     ws: true,
     logLevel: 'warn',
     pathRewrite: (_path, req) => req.originalUrl,
+    onProxyReq: (proxyReq, req) => {
+      // Preserve the original host for dynamic API base detection
+      if (req.headers.host) {
+        proxyReq.setHeader('X-Forwarded-Host', req.headers.host);
+      }
+      // Preserve protocol (http/https)
+      const protocol = req.headers['x-forwarded-proto'] || (req.connection.encrypted ? 'https' : 'http');
+      proxyReq.setHeader('X-Forwarded-Proto', protocol);
+    },
   })
 );
 

@@ -691,10 +691,34 @@ function contentTypeFor(filePath: string) {
   }
 }
 
-function serveInlinedWidget(res: ServerResponse) {
+function serveInlinedWidget(res: ServerResponse, req: IncomingMessage) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.writeHead(200).end(consentWidget.html);
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  
+  // Dynamically inject the correct API base URL based on the request host
+  let apiBaseUrl = normalizedStarterKitBase;
+  
+  // Check X-Forwarded-Host first (set by proxy), then fall back to Host header
+  const forwardedHost = req.headers["x-forwarded-host"] as string | undefined;
+  const host = forwardedHost || req.headers.host;
+  
+  // If accessed via a remote host (not localhost), use that host as the API base
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+    const protocol = req.headers["x-forwarded-proto"] || "https";
+    apiBaseUrl = `${protocol}://${host}`;
+    console.log(`[MCP Server] Serving widget with remote API base: ${apiBaseUrl} (from ${forwardedHost ? 'X-Forwarded-Host' : 'Host'} header)`);
+  }
+  
+  // Replace the hardcoded localhost URL with the dynamic one
+  const dynamicHtml = consentWidget.html.replace(
+    'window.__OPENFINANCE_API_BASE__ = "http://localhost:1411"',
+    `window.__OPENFINANCE_API_BASE__ = "${apiBaseUrl}"`
+  );
+  
+  res.writeHead(200).end(dynamicHtml);
 }
 
 function serveBundledAsset(pathname: string, res: ServerResponse) {
@@ -759,7 +783,7 @@ const httpServer = createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && url.pathname.startsWith("/widgets")) {
-    serveInlinedWidget(res);
+    serveInlinedWidget(res, req);
     return;
   }
 
