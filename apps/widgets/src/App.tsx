@@ -327,15 +327,30 @@ export default function App() {
     }
 
     setStep4Status("loading");
-    recordMessage("Extracting authorization code from callback URL...");
+    recordMessage("Parsing callback URL...");
 
     try {
-      // Parse the callback URL to extract the code
+      // Parse the callback URL
       const url = new URL(callbackUrl);
+      
+      // Check if token is directly provided (direct token flow)
+      const directToken = url.searchParams.get("token");
+      
+      if (directToken) {
+        recordMessage("Direct access token found in URL!");
+        setAccessToken(directToken);
+        setStep4Status("success");
+        setStep5Status("ready");
+        setCurrentStep(5);
+        recordMessage(`Access token obtained: ${directToken.substring(0, 10)}...`);
+        return;
+      }
+      
+      // Otherwise, look for authorization code (standard OAuth flow)
       const code = url.searchParams.get("code");
 
       if (!code) {
-        throw new Error("No authorization code found in callback URL");
+        throw new Error("No authorization code or token found in callback URL. Expected either 'code' or 'token' parameter.");
       }
 
       if (!consentData?.code_verifier) {
@@ -613,13 +628,16 @@ export default function App() {
               <strong>Where to find the callback URL:</strong>
             </p>
             <p>
-              After authorizing at {selectedBank}, you'll be redirected to a URL
-              like:
+              After authorizing at {selectedBank}, you'll be redirected to one of these URL formats:
             </p>
+            <code className="url-example">
+              http://localhost:1411/client/data-success?token=xxxxx&consent=xxxxx
+            </code>
+            <p style={{ margin: "4px 0", fontSize: "0.85rem" }}>or</p>
             <code className="url-example">
               http://localhost:1411/hackathon-redirect?code=xxxxx&state=xxxxx&iss=xxxxx
             </code>
-            <p>Copy the entire URL from your browser's address bar and paste it below.</p>
+            <p>Copy the entire URL from your browser's address bar and paste it below. The widget will automatically detect which format you're using.</p>
           </div>
 
           <label className="field">
