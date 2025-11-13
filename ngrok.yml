@@ -1,0 +1,9 @@
+version: "2"
+tunnels:
+  mcp-server:
+    proto: http
+    addr: 9035
+  starter-kit:
+    proto: http
+    addr: 1411
+
